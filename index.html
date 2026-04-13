@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PyCloud — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      background: #080a0d url('bg.jpg') no-repeat center center;
+      background-size: cover;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      overflow: hidden;
+    }
+    .card {
+      position: relative;
+      z-index: 10;
+      background: rgba(10,12,18,0.85);
+      border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 18px;
+      padding: 48px 44px 40px;
+      width: 380px;
+      max-width: 92vw;
+      box-shadow: 0 0 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05);
+      animation: cardIn 0.8s cubic-bezier(0.22,1,0.36,1) both;
+    }
+    @keyframes cardIn {
+      from { opacity:0; transform:translateY(30px) scale(0.97); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+    .brand { font-size:26px; font-weight:800; letter-spacing:-1px; color:#fff; margin-bottom:4px; }
+    .brand span { color:#00e5ff; }
+    .subtitle {
+      font-family:'Space Mono',monospace; font-size:11px;
+      color:rgba(255,255,255,0.4); letter-spacing:2px;
+      text-transform:uppercase; margin-bottom:36px;
+    }
+    label {
+      display:block; font-family:'Space Mono',monospace; font-size:10px;
+      letter-spacing:2px; color:rgba(255,255,255,0.5);
+      text-transform:uppercase; margin-bottom:10px;
+    }
+    .input-wrap { position:relative; margin-bottom:24px; }
+    input[type="password"], input[type="text"] {
+      width:100%; background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.15); border-radius:10px;
+      color:#fff; font-family:'Space Mono',monospace;
+      font-size:18px; letter-spacing:6px;
+      padding:14px 48px 14px 18px; outline:none;
+      transition:border-color 0.2s, box-shadow 0.2s;
+    }
+    input::placeholder { letter-spacing:2px; font-size:12px; color:rgba(255,255,255,0.2); }
+    input:focus { border-color:rgba(0,229,255,0.6); box-shadow:0 0 0 3px rgba(0,229,255,0.1); }
+    input.error {
+      border-color:rgba(255,79,106,0.7)!important;
+      box-shadow:0 0 0 3px rgba(255,79,106,0.1)!important;
+      animation:shake 0.35s ease;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 60%{transform:translateX(8px)}
+    }
+    .eye {
+      position:absolute; right:14px; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer;
+      color:rgba(255,255,255,0.4); font-size:16px; padding:4px; transition:color 0.2s;
+    }
+    .eye:hover { color:rgba(255,255,255,0.8); }
+    .error-msg {
+      font-family:'Space Mono',monospace; font-size:11px;
+      color:#ff4f6a; margin-top:-16px; margin-bottom:20px; min-height:16px;
+    }
+    .login-btn {
+      width:100%; padding:15px;
+      background:linear-gradient(135deg,#00e5ff 0%,#7c3aed 100%);
+      border:none; border-radius:10px; color:#fff;
+      font-family:'Syne',sans-serif; font-size:14px; font-weight:700;
+      letter-spacing:1px; cursor:pointer; transition:all 0.2s;
+    }
+    .login-btn:hover { filter:brightness(1.1); transform: translateY(-1px); }
+    .login-btn:active { transform:scale(0.98); }
+    .footer-note {
+      margin-top:24px; font-family:'Space Mono',monospace;
+      font-size:10px; color:rgba(255,255,255,0.2); text-align:center; letter-spacing:1px;
+    }
+    .success-overlay {
+      position:fixed; inset:0; z-index:999; background:rgba(0,229,255,0.1);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; pointer-events:none; transition:opacity 0.3s;
+    }
+    .success-overlay.show { opacity:1; pointer-events:all; }
+    .success-icon { font-size:64px; animation:popIn 0.4s cubic-bezier(0.22,1,0.36,1); }
+    @keyframes popIn {
+      from{transform:scale(0.4);opacity:0} to{transform:scale(1);opacity:1}
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="brand">Py<span>Cloud</span></div>
+  <div class="subtitle">Personal IDE — Restricted Access</div>
+  <label for="pwd">Password</label>
+  <div class="input-wrap">
+    <input type="password" id="pwd" placeholder="enter password" autocomplete="off" autofocus/>
+    <button class="eye" onclick="toggleEye()" tabindex="-1">👁</button>
+  </div>
+  <div class="error-msg" id="errMsg"></div>
+  <button class="login-btn" onclick="doLogin()">Enter IDE →</button>
+  <div class="footer-note">PyCloud · private workspace</div>
+</div>
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">🛡️</div>
+</div>
+<script>
+function getPassword(){ return localStorage.getItem('pycloud_password')||'MOON'; }
+
+function doLogin(){
+  const val=document.getElementById('pwd').value;
+  const inp=document.getElementById('pwd');
+  const err=document.getElementById('errMsg');
+  if(val===getPassword()){
+    err.textContent=''; inp.classList.remove('error');
+    document.getElementById('successOverlay').classList.add('show');
+    // Set a flag for the IDE to know it's a fresh login
+    sessionStorage.setItem('just_logged_in', 'true');
+    setTimeout(()=>{ window.location.href='ide.html'; },900);
+  } else {
+    inp.classList.add('error');
+    err.textContent='Access Denied. Try again.';
+    inp.value='';
+    setTimeout(()=>inp.classList.remove('error'),600);
+  }
+}
+document.getElementById('pwd').addEventListener('keydown',e=>{
+  if(e.key==='Enter') doLogin();
+  document.getElementById('errMsg').textContent='';
+});
+function toggleEye(){
+  const inp=document.getElementById('pwd');
+  inp.type=inp.type==='password'?'text':'password';
+}
+</script>
+</body>
+</html>
