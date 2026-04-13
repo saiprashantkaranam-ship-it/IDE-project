@@ -370,7 +370,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
 
 <script>
-let editor, pyodide, pyodideReady = false;
+let editor, pyodide, pyodideReady = false, isDownloading = false;
 const output  = document.getElementById('output');
 const runBtn  = document.getElementById('runBtn');
 const statusT = document.getElementById('statusText');
@@ -451,6 +451,9 @@ window.onload = () => {
 
 // ── PYODIDE LOADER WITH PROGRESS ──
 async function loadPyodideWithProgress() {
+  if (isDownloading) return;
+  isDownloading = true;
+  
   const overlay = document.getElementById('loaderOverlay');
   const bar = document.getElementById('progressBar');
   const status = document.getElementById('loaderStatus');
@@ -460,9 +463,9 @@ async function loadPyodideWithProgress() {
   
   const steps = [
     { p: 10, m: "Starting download...", t: 1 },
-    { p: 40, m: "Downloading Python runtime...", t: 3 },
-    { p: 70, m: "Installing packages...", t: 2 },
-    { p: 90, m: "Finalizing...", t: 1 }
+    { p: 40, m: "Downloading Python runtime...", t: 4 },
+    { p: 70, m: "Installing packages...", t: 3 },
+    { p: 90, m: "Finalizing...", t: 2 }
   ];
 
   let currentProgress = 0;
@@ -475,7 +478,9 @@ async function loadPyodideWithProgress() {
     for (let i = 0; i < duration; i += interval) {
       currentProgress += increment;
       bar.style.width = `${currentProgress}%`;
-      eta.textContent = `ESTIMATED TIME: ${Math.ceil((duration - i) / 1000)}s`;
+      const remainingStepsTime = steps.slice(steps.indexOf(step) + 1).reduce((acc, s) => acc + s.t, 0);
+      const currentStepRemaining = (duration - i) / 1000;
+      eta.textContent = `ESTIMATED TIME: ${Math.ceil(remainingStepsTime + currentStepRemaining)}s`;
       await new Promise(r => setTimeout(r, interval));
     }
   }
@@ -487,12 +492,19 @@ async function loadPyodideWithProgress() {
   
   await new Promise((resolve) => {
     script.onload = async () => {
-      pyodide = await loadPyodide();
-      pyodideReady = true;
-      overlay.style.display = 'none';
-      statusT.textContent = "✅ Engine ready.";
-      runCode();
-      resolve();
+      try {
+        pyodide = await loadPyodide();
+        pyodideReady = true;
+        isDownloading = false;
+        overlay.style.display = 'none';
+        statusT.textContent = "✅ Engine ready.";
+        runCode();
+        resolve();
+      } catch (e) {
+        status.textContent = "❌ Load failed. Check internet.";
+        isDownloading = false;
+        setTimeout(() => overlay.style.display = 'none', 3000);
+      }
     };
   });
 }
@@ -500,7 +512,9 @@ async function loadPyodideWithProgress() {
 // ── RUN LOGIC ──
 function handleRunClick() {
   if (!pyodideReady) {
-    loadPyodideWithProgress();
+    if (confirm("Python runtime not installed. Download required. Continue?")) {
+      loadPyodideWithProgress();
+    }
   } else {
     runCode();
   }
