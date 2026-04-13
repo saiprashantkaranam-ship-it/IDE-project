@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PyCloud IDE</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
+      --accent:#00e5ff; --accent2:#7c3aed; --green:#00ff9d;
+      --red:#ff4f6a; --text:#e2e8f0; --muted:#4a5568; --panel:#0f1219;
+    }
+    *{ margin:0; padding:0; box-sizing:border-box; }
+    body{
+      font-family:'Syne',sans-serif; background:var(--bg);
+      color:var(--text); height:100vh; display:flex;
+      flex-direction:column; overflow:hidden;
+    }
+    header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:0 20px; height:52px; background:var(--surface);
+      border-bottom:1px solid var(--border); flex-shrink:0; gap:12px;
+    }
+    .logo{ font-size:18px; font-weight:800; letter-spacing:-0.5px; color:var(--accent); white-space:nowrap; }
+    .logo span{ color:var(--accent2); }
+    #projectName{
+      background:var(--panel); border:1px solid var(--border);
+      color:var(--text); font-family:'Space Mono',monospace;
+      font-size:12px; padding:5px 10px; border-radius:6px;
+      width:160px; outline:none; transition:border-color 0.2s;
+    }
+    #projectName:focus{ border-color:var(--accent); }
+    .header-btns{ display:flex; gap:8px; flex-shrink:0; }
+    button{
+      font-family:'Space Mono',monospace; font-size:11px; font-weight:700;
+      padding:6px 14px; border:none; border-radius:6px; cursor:pointer;
+      transition:all 0.15s; letter-spacing:0.5px; white-space:nowrap;
+    }
+    #runBtn{ background:var(--green); color:#000; }
+    #runBtn:hover{ filter:brightness(1.15); transform:translateY(-1px); }
+    #runBtn:disabled{ opacity:0.5; cursor:not-allowed; transform:none; }
+    #saveBtn{ background:var(--accent); color:#000; }
+    #saveBtn:hover{ filter:brightness(1.1); transform:translateY(-1px); }
+    #loadBtn{ background:var(--accent2); color:#fff; }
+    #loadBtn:hover{ filter:brightness(1.2); transform:translateY(-1px); }
+    #shareBtn{ background:var(--border); color:var(--text); }
+    #shareBtn:hover{ background:#2a3045; transform:translateY(-1px); }
+    #changePwdBtn{ background:#1f2433; color:#fbbf24; border:1px solid #fbbf2444; }
+    #changePwdBtn:hover{ background:#2a2f40; transform:translateY(-1px); }
+    #logoutBtn{ background:transparent; color:var(--muted); border:1px solid var(--border); }
+    #logoutBtn:hover{ color:var(--red); border-color:var(--red); }
+
+    main{ flex:1; display:flex; overflow:hidden; }
+    .editor-panel{ flex:1; display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--border); }
+    .panel-label{
+      font-size:10px; font-weight:700; letter-spacing:2px; color:var(--muted);
+      padding:8px 16px; background:var(--surface);
+      border-bottom:1px solid var(--border); text-transform:uppercase;
+    }
+    #editor{ flex:1; overflow:hidden; }
+    .output-panel{ width:38%; min-width:260px; display:flex; flex-direction:column; background:var(--panel); }
+    .output-header{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:8px 16px; background:var(--surface); border-bottom:1px solid var(--border);
+    }
+    #clearBtn{ background:transparent; color:var(--muted); font-size:10px; padding:3px 8px; border:1px solid var(--border); }
+    #clearBtn:hover{ color:var(--text); border-color:var(--muted); }
+    #output{
+      flex:1; font-family:'Space Mono',monospace; font-size:12.5px;
+      line-height:1.7; padding:16px; overflow-y:auto;
+      white-space:pre-wrap; word-break:break-all; color:var(--green);
+    }
+    #output .error{ color:var(--red); }
+    #output .info{ color:var(--accent); }
+    #statusBar{
+      height:24px; background:var(--accent2); display:flex; align-items:center;
+      padding:0 16px; font-family:'Space Mono',monospace;
+      font-size:10px; color:#fff; flex-shrink:0; gap:16px;
+    }
+    #statusText{ flex:1; }
+
+    /* ── TOAST ── */
+    #toast{
+      position:fixed; bottom:36px; left:50%;
+      transform:translateX(-50%) translateY(20px);
+      background:var(--surface); border:1px solid var(--accent);
+      color:var(--accent); font-family:'Space Mono',monospace;
+      font-size:12px; padding:10px 20px; border-radius:8px;
+      opacity:0; transition:all 0.3s; pointer-events:none; z-index:999; white-space:nowrap;
+    }
+    #toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+    /* ── MODALS ── */
+    .modal-bg{
+      display:none; position:fixed; inset:0;
+      background:rgba(0,0,0,0.7); z-index:100;
+      align-items:center; justify-content:center;
+    }
+    .modal-bg.open{ display:flex; }
+    .modal{
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:12px; padding:24px; width:380px; max-width:90vw;
+    }
+    .modal h3{ font-size:16px; margin-bottom:16px; color:var(--accent); }
+    #projectList{ list-style:none; max-height:280px; overflow-y:auto; }
+    #projectList li{
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 12px; border-radius:6px; cursor:pointer;
+      font-family:'Space Mono',monospace; font-size:12px;
+      border:1px solid transparent; margin-bottom:6px; transition:all 0.15s;
+    }
+    #projectList li:hover{ background:var(--border); border-color:var(--accent2); }
+    #projectList li .del-btn{ background:transparent; color:var(--red); font-size:10px; padding:2px 6px; border:1px solid var(--red); opacity:0.6; }
+    #projectList li .del-btn:hover{ opacity:1; }
+    .modal-close{ margin-top:16px; background:var(--border); color:var(--text); width:100%; padding:8px; }
+
+    /* password change modal */
+    .pwd-input{
+      width:100%; background:rgba(255,255,255,0.04);
+      border:1px solid var(--border); border-radius:8px;
+      color:var(--text); font-family:'Space Mono',monospace;
+      font-size:14px; padding:10px 14px; outline:none;
+      transition:border-color 0.2s; margin-bottom:12px;
+    }
+    .pwd-input:focus{ border-color:var(--accent); }
+    .pwd-label{ font-family:'Space Mono',monospace; font-size:10px; letter-spacing:1px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; display:block; }
+    .pwd-error{ font-family:'Space Mono',monospace; font-size:11px; color:var(--red); min-height:16px; margin-bottom:10px; }
+    .save-pwd-btn{ background:var(--green); color:#000; width:100%; padding:10px; margin-top:4px; }
+    .save-pwd-btn:hover{ filter:brightness(1.1); }
+
+    ::-webkit-scrollbar{ width:6px; height:6px; }
+    ::-webkit-scrollbar-track{ background:transparent; }
+    ::-webkit-scrollbar-thumb{ background:var(--border); border-radius:3px; }
+
+    @media(max-width:640px){
+      .output-panel{ width:100%; min-width:unset; }
+      main{ flex-direction:column; }
+      .editor-panel{ border-right:none; border-bottom:1px solid var(--border); height:55%; }
+      .output-panel{ height:45%; }
+      #projectName{ width:100px; }
+      #changePwdBtn span{ display:none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Py<span>Cloud</span></div>
+  <input id="projectName" type="text" placeholder="project-name" value="my_project"/>
+  <div class="header-btns">
+    <button id="saveBtn">💾 Save</button>
+    <button id="loadBtn">📂 Load</button>
+    <button id="shareBtn">🔗 Share</button>
+    <button id="changePwdBtn" onclick="openPwdModal()">🔑 <span>Password</span></button>
+    <button id="runBtn" disabled>▶ Run</button>
+    <button id="logoutBtn" onclick="logout()">↩ Exit</button>
+  </div>
+</header>
+
+<main>
+  <div class="editor-panel">
+    <div class="panel-label">editor — python</div>
+    <div id="editor"></div>
+  </div>
+  <div class="output-panel">
+    <div class="output-header">
+      <span class="panel-label" style="padding:0;border:none;">output</span>
+      <button id="clearBtn">✕ clear</button>
+    </div>
+    <div id="output"><span class="info">// PyCloud IDE ready. Hit ▶ Run to execute.\n</span></div>
+  </div>
+</main>
+
+<div id="statusBar">
+  <span id="statusText">⚡ Loading Python runtime…</span>
+  <span id="pyVersion"></span>
+</div>
+
+<div id="toast"></div>
+
+<!-- Load Modal -->
+<div class="modal-bg" id="loadModal">
+  <div class="modal">
+    <h3>📂 Your Projects</h3>
+    <ul id="projectList"></ul>
+    <button class="modal-close" onclick="closeModal('loadModal')">Close</button>
+  </div>
+</div>
+
+<!-- Change Password Modal -->
+<div class="modal-bg" id="pwdModal">
+  <div class="modal">
+    <h3>🔑 Change Password</h3>
+    <label class="pwd-label">Current Password</label>
+    <input class="pwd-input" type="password" id="currentPwd" placeholder="enter current password"/>
+    <label class="pwd-label">New Password</label>
+    <input class="pwd-input" type="password" id="newPwd" placeholder="enter new password"/>
+    <label class="pwd-label">Confirm New Password</label>
+    <input class="pwd-input" type="password" id="confirmPwd" placeholder="confirm new password"/>
+    <div class="pwd-error" id="pwdError"></div>
+    <button class="save-pwd-btn" onclick="changePassword()">Save New Password</button>
+    <button class="modal-close" onclick="closeModal('pwdModal')" style="margin-top:10px;">Cancel</button>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, setDoc, getDoc, getDocs, deleteDoc, collection }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // 🔥 PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  let db = null;
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    window._db = db;
+    window._firestoreFns = { doc, setDoc, getDoc, getDocs, deleteDoc, collection };
+  } catch(e) { console.warn("[Firebase] Not configured:", e.message); }
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+
+<script>
+let editor, pyodide;
+const output  = document.getElementById('output');
+const runBtn  = document.getElementById('runBtn');
+const statusT = document.getElementById('statusText');
+const pyVerEl = document.getElementById('pyVersion');
+
+const STARTER = `# Welcome to PyCloud IDE 🚀
+# Write Python and hit ▶ Run
+
+def greet(name):
+    return f"Hello, {name}! 👋"
+
+for i in range(5):
+    print(greet(f"User {i+1}"))
+
+import math
+print(f"\\nπ ≈ {math.pi:.10f}")
+print(f"√2 ≈ {math.sqrt(2):.10f}")
+`;
+
+// ── MONACO ──
+require.config({ paths:{ vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' }});
+require(['vs/editor/editor.main'], function(){
+  monaco.editor.defineTheme('pycloud',{
+    base:'vs-dark', inherit:true,
+    rules:[
+      {token:'keyword',foreground:'7c3aed',fontStyle:'bold'},
+      {token:'string',foreground:'00ff9d'},
+      {token:'comment',foreground:'4a5568',fontStyle:'italic'},
+      {token:'number',foreground:'00e5ff'},
+    ],
+    colors:{
+      'editor.background':'#0d0f14','editor.foreground':'#e2e8f0',
+      'editorLineNumber.foreground':'#2a3045',
+      'editorLineNumber.activeForeground':'#7c3aed',
+      'editor.selectionBackground':'#7c3aed44',
+      'editor.lineHighlightBackground':'#13161e',
+      'editorCursor.foreground':'#00e5ff',
+    }
+  });
+  editor = monaco.editor.create(document.getElementById('editor'),{
+    value:STARTER, language:'python', theme:'pycloud',
+    fontSize:14, fontFamily:"'Space Mono',monospace",
+    lineNumbers:'on', minimap:{enabled:false},
+    scrollBeyondLastLine:false, automaticLayout:true,
+    tabSize:4, insertSpaces:true, wordWrap:'on',
+    cursorBlinking:'smooth', smoothScrolling:true,
+    autoClosingBrackets:'always', autoIndent:'full',
+    bracketPairColorization:{enabled:true},
+  });
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, ()=>runCode());
+  checkShareLink();
+});
+
+// ── PYODIDE ──
+async function initPyodide(){
+  try {
+    statusT.textContent='⚡ Loading Python runtime…';
+    pyodide = await loadPyodide();
+    const ver = pyodide.runPython('import sys; sys.version.split()[0]');
+    pyVerEl.textContent=`Python ${ver}`;
+    statusT.textContent='✅ Ready — Ctrl+Enter or ▶ Run';
+    runBtn.disabled=false;
+  } catch(e){
+    statusT.textContent='❌ Python runtime failed';
+    appendOutput(`[ERROR] ${e.message}\n`,'error');
+  }
+}
+initPyodide();
+
+// ── RUN ──
+async function runCode(){
+  if(!pyodide) return;
+  const code=editor.getValue();
+  if(!code.trim()) return;
+  runBtn.disabled=true; runBtn.textContent='⏳ Running…';
+  statusT.textContent='🔄 Executing…'; output.innerHTML='';
+  pyodide.runPython(`import sys,io\n_cap=io.StringIO()\nsys.stdout=_cap\nsys.stderr=_cap`);
+  try {
+    await pyodide.runPythonAsync(code);
+    const out=pyodide.runPython('_cap.getvalue()');
+    out ? appendOutput(out,'normal') : appendOutput('(no output)\n','info');
+    statusT.textContent='✅ Done';
+  } catch(err){
+    const out=pyodide.runPython('_cap.getvalue()');
+    if(out) appendOutput(out,'normal');
+    appendOutput(err.message+'\n','error');
+    statusT.textContent='❌ Error';
+  } finally {
+    pyodide.runPython('sys.stdout=sys.__stdout__;sys.stderr=sys.__stderr__');
+    runBtn.disabled=false; runBtn.textContent='▶ Run';
+  }
+}
+
+function appendOutput(text,type='normal'){
+  const span=document.createElement('span');
+  if(type!=='normal') span.className=type;
+  span.textContent=text;
+  output.appendChild(span);
+  output.scrollTop=output.scrollHeight;
+}
+
+// ── SAVE ──
+async function saveProject(){
+  const db=window._db;
+  if(!db){ showToast('⚠️ Firebase not configured yet'); return; }
+  const name=document.getElementById('projectName').value.trim()||'untitled';
+  const code=editor.getValue();
+  const {doc,setDoc}=window._firestoreFns;
+  try {
+    await setDoc(doc(db,'projects',name),{name,code,updatedAt:new Date().toISOString()});
+    showToast(`✅ Saved: ${name}`); statusT.textContent=`💾 Saved "${name}"`;
+  } catch(e){ showToast('❌ Save failed'); console.error(e); }
+}
+
+// ── LOAD ──
+async function openLoadModal(){
+  const db=window._db;
+  if(!db){ showToast('⚠️ Firebase not configured yet'); return; }
+  const {getDocs,collection,doc,deleteDoc}=window._firestoreFns;
+  const list=document.getElementById('projectList');
+  list.innerHTML='<li style="color:var(--muted)">Loading…</li>';
+  document.getElementById('loadModal').classList.add('open');
+  try {
+    const snap=await getDocs(collection(db,'projects'));
+    list.innerHTML='';
+    if(snap.empty){ list.innerHTML='<li style="color:var(--muted)">No saved projects yet.</li>'; return; }
+    snap.forEach(docSnap=>{
+      const d=docSnap.data();
+      const li=document.createElement('li');
+      li.innerHTML=`<span>${d.name}</span><button class="del-btn" data-id="${d.name}">delete</button>`;
+      li.querySelector('span').onclick=()=>{
+        editor.setValue(d.code);
+        document.getElementById('projectName').value=d.name;
+        closeModal('loadModal'); showToast(`📂 Loaded: ${d.name}`);
+      };
+      li.querySelector('.del-btn').onclick=async(e)=>{
+        e.stopPropagation();
+        if(!confirm(`Delete "${d.name}"?`)) return;
+        await deleteDoc(doc(db,'projects',d.name));
+        li.remove(); showToast(`🗑 Deleted: ${d.name}`);
+      };
+      list.appendChild(li);
+    });
+  } catch(e){ list.innerHTML='<li style="color:var(--red)">Failed to load.</li>'; }
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── SHARE ──
+function shareProject(){
+  const code=editor.getValue();
+  const encoded=btoa(unescape(encodeURIComponent(code)));
+  const url=`${location.origin}${location.pathname}?code=${encoded}`;
+  navigator.clipboard.writeText(url).then(()=>showToast('🔗 Share link copied!')).catch(()=>prompt('Copy link:',url));
+}
+function checkShareLink(){
+  const params=new URLSearchParams(location.search);
+  if(params.has('code')){
+    try {
+      const code=decodeURIComponent(escape(atob(params.get('code'))));
+      if(editor) editor.setValue(code);
+      else setTimeout(()=>editor&&editor.setValue(code),1000);
+      showToast('📎 Shared code loaded!');
+      history.replaceState({},'',location.pathname);
+    } catch(e){}
+  }
+}
+
+// ── CHANGE PASSWORD ──
+function openPwdModal(){
+  document.getElementById('currentPwd').value='';
+  document.getElementById('newPwd').value='';
+  document.getElementById('confirmPwd').value='';
+  document.getElementById('pwdError').textContent='';
+  document.getElementById('pwdModal').classList.add('open');
+}
+
+function getPassword(){ return localStorage.getItem('pycloud_password')||'MOON'; }
+
+function changePassword(){
+  const current=document.getElementById('currentPwd').value;
+  const newPwd=document.getElementById('newPwd').value;
+  const confirm=document.getElementById('confirmPwd').value;
+  const errEl=document.getElementById('pwdError');
+
+  if(current!==getPassword()){
+    errEl.textContent='Current password is incorrect.'; return;
+  }
+  if(newPwd.length<3){
+    errEl.textContent='New password must be at least 3 characters.'; return;
+  }
+  if(newPwd!==confirm){
+    errEl.textContent='Passwords do not match.'; return;
+  }
+  localStorage.setItem('pycloud_password', newPwd);
+  closeModal('pwdModal');
+  showToast('🔑 Password changed successfully!');
+}
+
+// ── LOGOUT ──
+function logout(){ window.location.href='index.html'; }
+
+// ── TOAST ──
+let toastTimer;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// ── EVENTS ──
+document.getElementById('runBtn').onclick=runCode;
+document.getElementById('saveBtn').onclick=saveProject;
+document.getElementById('loadBtn').onclick=openLoadModal;
+document.getElementById('shareBtn').onclick=shareProject;
+document.getElementById('clearBtn').onclick=()=>{ output.innerHTML=''; };
+document.getElementById('loadModal').onclick=function(e){ if(e.target===this) closeModal('loadModal'); };
+document.getElementById('pwdModal').onclick=function(e){ if(e.target===this) closeModal('pwdModal'); };
+</script>
+</body>
+</html>
