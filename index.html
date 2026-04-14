@@ -18,20 +18,43 @@
     }
     #bgImage {
       position: absolute; inset: 0;
-      background: url('bg.jpg') center/cover no-repeat;
+      background: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=1920') center/cover no-repeat;
       z-index: -2; transition: opacity 0.5s;
     }
     #bgOverlay {
       position: absolute; inset: 0;
-      background: radial-gradient(circle at center, transparent 0%, rgba(13,15,20,0.8) 100%);
+      background: radial-gradient(circle at center, transparent 0%, rgba(13,15,20,0.85) 100%);
       z-index: -1;
     }
     #bgLogoLayer {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      opacity: 0.15; pointer-events: none; z-index: -1;
+      opacity: 0.1; pointer-events: none; z-index: -1;
     }
     #bgLogoLayer img { max-width: 40%; max-height: 40%; object-fit: contain; }
+
+    /* Device Detection Modal */
+    .device-modal {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    .device-card {
+      background: var(--surface); border: 1px solid var(--accent2);
+      border-radius: 20px; padding: 32px; width: 380px; max-width: 90vw;
+      text-align: center; box-shadow: 0 24px 48px rgba(124,58,237,0.3);
+    }
+    .device-card h2 { color: var(--accent); margin-bottom: 16px; }
+    .device-options { display: flex; gap: 16px; justify-content: center; margin: 24px 0; }
+    .device-btn {
+      background: var(--border); border: none; border-radius: 12px;
+      padding: 20px; cursor: pointer; transition: all 0.2s;
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      flex: 1;
+    }
+    .device-btn:hover { background: var(--accent2); transform: translateY(-2px); }
+    .device-btn span { font-size: 32px; }
+    .device-btn small { font-family: 'Space Mono', monospace; font-size: 11px; color: var(--muted); }
 
     .login-card {
       background: rgba(19, 22, 30, 0.8); backdrop-filter: blur(12px);
@@ -89,6 +112,31 @@
 <div id="bgOverlay"></div>
 <div id="bgLogoLayer"><img id="dynamicBgLogo" src="" style="display:none;"></div>
 
+<!-- Device Detection Modal -->
+<div class="device-modal" id="deviceModal">
+  <div class="device-card">
+    <h2>👋 Welcome, Boss!</h2>
+    <p style="color: var(--muted); margin-bottom: 20px;">What device are you using?</p>
+    <div class="device-options">
+      <div class="device-btn" onclick="selectDevice('phone')">
+        <span>📱</span>
+        <small>PHONE</small>
+      </div>
+      <div class="device-btn" onclick="selectDevice('computer')">
+        <span>💻</span>
+        <small>COMPUTER</small>
+      </div>
+      <div class="device-btn" onclick="selectDevice('laptop')">
+        <span>💼</span>
+        <small>LAPTOP</small>
+      </div>
+    </div>
+    <p style="font-family: 'Space Mono', monospace; font-size: 10px; color: var(--accent);">
+      This helps optimize your IDE experience
+    </p>
+  </div>
+</div>
+
 <div class="login-card">
   <div class="logo" id="siteName">Py<span>Cloud</span></div>
   <div class="subtitle">Personal IDE System</div>
@@ -129,6 +177,27 @@
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
 
+  // Device detection
+  window.selectDevice = function(device) {
+    localStorage.setItem('pycloud_device', device);
+    document.getElementById('deviceModal').style.display = 'none';
+    
+    // Apply device-specific optimizations
+    if (device === 'phone') {
+      document.documentElement.style.setProperty('--editor-font-size', '16px');
+    }
+  };
+
+  // Auto-detect if not set
+  if (!localStorage.getItem('pycloud_device')) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      selectDevice('phone');
+    }
+  } else {
+    document.getElementById('deviceModal').style.display = 'none';
+  }
+
   let globalPassword = "";
   const passInput = document.getElementById('passInput');
   const loginBtn = document.getElementById('loginBtn');
@@ -136,18 +205,15 @@
   const syncDot = document.getElementById('syncDot');
   const syncStatus = document.getElementById('syncStatus');
 
-  // ── LIVE SYNC: PASSWORD & ASSETS ──
+  // LIVE SYNC: PASSWORD & ASSETS
   onSnapshot(doc(db, "settings", "global"), (docSnap) => {
     if (docSnap.exists()) {
       const data = docSnap.data();
       
-      // Sync Password
       globalPassword = data.password || "MOON";
       
-      // Sync Branding
       if (data.siteName) document.getElementById('siteName').innerHTML = data.siteName;
       
-      // Sync Assets
       if (data.assets?.backgroundUrl) {
         document.getElementById('bgImage').style.backgroundImage = `url('${data.assets.backgroundUrl}')`;
       }
@@ -157,7 +223,6 @@
         bgLogo.style.display = 'block';
       }
 
-      // Update Status
       syncDot.classList.add('online');
       syncStatus.textContent = "SYNCED WITH FIREBASE";
       loginBtn.disabled = false;
@@ -169,7 +234,6 @@
     console.error(err);
   });
 
-  // ── LOGIN LOGIC ──
   function handleLogin() {
     const val = passInput.value.trim();
     if (val === globalPassword) {
