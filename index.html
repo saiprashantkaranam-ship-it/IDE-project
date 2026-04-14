@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PyCloud — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14; --surface: #13161e; --border: #1f2433;
+      --accent: #00e5ff; --accent2: #7c3aed; --text: #e2e8f0; --muted: #4a5568;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text);
+      height: 100vh; display: flex; align-items: center; justify-content: center;
+      overflow: hidden; position: relative;
+    }
+    #bgImage {
+      position: absolute; inset: 0;
+      background: url('bg.jpg') center/cover no-repeat;
+      z-index: -2; transition: opacity 0.5s;
+    }
+    #bgOverlay {
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at center, transparent 0%, rgba(13,15,20,0.8) 100%);
+      z-index: -1;
+    }
+    #bgLogoLayer {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0.15; pointer-events: none; z-index: -1;
+    }
+    #bgLogoLayer img { max-width: 40%; max-height: 40%; object-fit: contain; }
+
+    .login-card {
+      background: rgba(19, 22, 30, 0.8); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 24px;
+      padding: 40px; width: 380px; max-width: 90vw;
+      text-align: center; box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+      transform: translateY(0); transition: all 0.3s;
+    }
+    .login-card:hover { border-color: var(--accent2); }
+    
+    .logo { font-size: 32px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; color: var(--accent); }
+    .logo span { color: var(--accent2); }
+    .subtitle { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 32px; }
+
+    .input-group { position: relative; margin-bottom: 20px; }
+    input {
+      width: 100%; background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      border-radius: 12px; padding: 14px 18px; color: #fff;
+      font-family: 'Space Mono', monospace; font-size: 14px; outline: none;
+      transition: all 0.2s; text-align: center;
+    }
+    input:focus { border-color: var(--accent); background: rgba(255,255,255,0.06); }
+    
+    button {
+      width: 100%; background: var(--accent2); color: #fff; border: none;
+      border-radius: 12px; padding: 14px; font-family: 'Syne', sans-serif;
+      font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+    button:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .sync-indicator {
+      position: absolute; bottom: 20px; right: 20px;
+      display: flex; align-items: center; gap: 8px; font-size: 10px; color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); transition: background 0.3s; }
+    .dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+    #errorMsg { color: #ff4f6a; font-size: 12px; margin-top: 12px; min-height: 18px; font-family: 'Space Mono', monospace; }
+    
+    .success-overlay {
+      position: fixed; inset: 0; background: var(--bg); z-index: 100;
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      animation: fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .success-icon { font-size: 48px; margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+
+<div id="bgImage"></div>
+<div id="bgOverlay"></div>
+<div id="bgLogoLayer"><img id="dynamicBgLogo" src="" style="display:none;"></div>
+
+<div class="login-card">
+  <div class="logo" id="siteName">Py<span>Cloud</span></div>
+  <div class="subtitle">Personal IDE System</div>
+  
+  <div class="input-group">
+    <input type="password" id="passInput" placeholder="ENTER ACCESS KEY" autocomplete="off">
+  </div>
+  
+  <button id="loginBtn" disabled>CONNECT 🕶️</button>
+  <div id="errorMsg"></div>
+</div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">🕶️</div>
+  <div style="font-weight:800; font-size:24px; letter-spacing:-1px;">ACCESS GRANTED</div>
+  <div style="color:var(--muted); font-size:12px; margin-top:8px; font-family:'Space Mono',monospace;">Welcome back, Boss.</div>
+</div>
+
+<div class="sync-indicator">
+  <div class="dot" id="syncDot"></div>
+  <span id="syncStatus">CONNECTING TO FIREBASE...</span>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCOKp_ksThO3E_oc_H7NWMqkPTuLoDrrKI",
+    authDomain: "ideqvr.firebaseapp.com",
+    projectId: "ideqvr",
+    storageBucket: "ideqvr.firebasestorage.app",
+    messagingSenderId: "258032258981",
+    appId: "1:258032258981:web:d302dcc896d5ab18c2e24c",
+    measurementId: "G-JDEF11SPS6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  let globalPassword = "";
+  const passInput = document.getElementById('passInput');
+  const loginBtn = document.getElementById('loginBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const syncDot = document.getElementById('syncDot');
+  const syncStatus = document.getElementById('syncStatus');
+
+  // ── LIVE SYNC: PASSWORD & ASSETS ──
+  onSnapshot(doc(db, "settings", "global"), (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      
+      // Sync Password
+      globalPassword = data.password || "MOON";
+      
+      // Sync Branding
+      if (data.siteName) document.getElementById('siteName').innerHTML = data.siteName;
+      
+      // Sync Assets
+      if (data.assets?.backgroundUrl) {
+        document.getElementById('bgImage').style.backgroundImage = `url('${data.assets.backgroundUrl}')`;
+      }
+      if (data.assets?.logoUrl) {
+        const bgLogo = document.getElementById('dynamicBgLogo');
+        bgLogo.src = data.assets.logoUrl;
+        bgLogo.style.display = 'block';
+      }
+
+      // Update Status
+      syncDot.classList.add('online');
+      syncStatus.textContent = "SYNCED WITH FIREBASE";
+      loginBtn.disabled = false;
+    } else {
+      syncStatus.textContent = "BOOTSTRAP REQUIRED";
+    }
+  }, (err) => {
+    syncStatus.textContent = "SYNC ERROR";
+    console.error(err);
+  });
+
+  // ── LOGIN LOGIC ──
+  function handleLogin() {
+    const val = passInput.value.trim();
+    if (val === globalPassword) {
+      document.getElementById('successOverlay').style.display = 'flex';
+      sessionStorage.setItem('is_boss', 'true');
+      sessionStorage.setItem('just_logged_in', 'true');
+      setTimeout(() => { window.location.href = 'ide.html'; }, 1200);
+    } else {
+      errorMsg.textContent = "INVALID ACCESS KEY";
+      passInput.style.borderColor = "#ff4f6a";
+      setTimeout(() => { 
+        errorMsg.textContent = ""; 
+        passInput.style.borderColor = "";
+      }, 2000);
+    }
+  }
+
+  loginBtn.onclick = handleLogin;
+  passInput.onkeydown = (e) => { if (e.key === 'Enter') handleLogin(); };
+</script>
+
+</body>
+</html>
