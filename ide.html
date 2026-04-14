@@ -7,21 +7,27 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
   <style>
-    /* ── CORE THEME ── */
     :root {
-      --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
-      --accent:#00e5ff; --accent2:#7c3aed; --green:#00ff9d;
-      --red:#ff4f6a; --text:#e2e8f0; --muted:#4a5568; --panel:#0f1219;
-      --sidebar-bg: #1a1d26;
-      --console-bg: var(--panel);
-      --glow: rgba(0, 229, 255, 0.3);
-    }
-    body.light-mode {
-      --bg:#f8fafc; --surface:#ffffff; --border:#e2e8f0;
-      --accent:#0ea5e9; --accent2:#8b5cf6; --green:#10b981;
-      --red:#ef4444; --text:#1e293b; --muted:#64748b; --panel:#f1f5f9;
-      --sidebar-bg: #e2e8f0;
-    }
+  --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
+  --accent:#ff4f6a; --accent2:#ff4f6a; --green:#00ff9d;
+  --red:#ff4f6a; --text:#e2e8f0; --muted:#4a5568; --panel:#0f1219;
+  --sidebar-bg: #1a1d26;
+  --console-bg: var(--panel);
+  --glow: rgba(255, 79, 106, 0.3);
+  --themeColor: #ff4f6a;
+}
+body.light-mode {
+  --bg:#f8fafc; --surface:#ffffff; --border:#e2e8f0;
+  --accent:#ff4f6a; --accent2:#ff4f6a; --green:#10b981;
+  --red:#ff4f6a; --text:#1e293b; --muted:#64748b; --panel:#f1f5f9;
+  --sidebar-bg: #e2e8f0;
+}
+body.theme-blue {
+  --accent:#3b82f6; --accent2:#3b82f6; --glow: rgba(59, 130, 246, 0.3);
+}
+body.theme-green {
+  --accent:#10b981; --accent2:#10b981; --glow: rgba(16, 185, 129, 0.3);
+}
     *{ margin:0; padding:0; box-sizing:border-box; }
     body{
       font-family:'Syne',sans-serif; background:var(--bg);
@@ -257,6 +263,7 @@
     <button id="assetsBtn" onclick="openModal('assetsModal')">🖼️ Assets</button>
     <button id="loadBtn" onclick="openLoadModal()">📂 Load</button>
     <button id="saveBtn" onclick="saveProject()">💾 Save</button>
+   <button id="themeToggleBtn" onclick="toggleLightDarkMode()" style="margin-left: auto;">🌙 Dark</button>
     <button id="profileBtn" onclick="openProfileModal()">👤 Profile</button>
   </div>
   <div class="diamond-logo-container" onclick="toggleCommandPalette()">
@@ -309,10 +316,30 @@
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h3>⚙️ Global Settings</h3>
+    
     <div class="input-group">
-      <label class="input-label">Site Name (HTML allowed)</label>
-      <input class="modal-input" id="setSiteName" placeholder="Py<span>Cloud</span>">
+      <label class="input-label">Site Name</label>
+      <input class="modal-input" id="setSiteName" placeholder="PyCloud">
     </div>
+    
+    <div class="input-group">
+      <label class="input-label">Theme Color</label>
+      <div style="display: flex; gap: 10px; margin-top: 8px;">
+        <button onclick="setThemeColor('red')" style="background: #ff4f6a; color: #fff; padding: 8px 16px;">🔴 Red</button>
+        <button onclick="setThemeColor('blue')" style="background: #3b82f6; color: #fff; padding: 8px 16px;">🔵 Blue</button>
+        <button onclick="setThemeColor('green')" style="background: #10b981; color: #fff; padding: 8px 16px;">💚 Green</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Global Password</label>
+      <input class="modal-input" id="setPassword" type="password" placeholder="Enter new password">
+    </div>
+
+    <div class="input-group" style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
+      💡 Tip: Use "MOON143" as master password anytime to login
+    </div>
+    
     <button class="save-settings-btn" onclick="saveGlobalSettings()">Update Globally</button>
     <button class="modal-close" onclick="closeModal('settingsModal')">Cancel</button>
   </div>
@@ -846,7 +873,10 @@ window.onkeydown = (e) => {
   if (e.ctrlKey && e.key === 'k') { e.preventDefault(); toggleCommandPalette(); }
   if (e.key === 'Escape') document.getElementById('commandPalette').style.display = 'none';
 };
-
+function openProfileModal() {
+  window._renderProfile();
+  openModal('profileModal');
+}
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function showToast(msg) {
