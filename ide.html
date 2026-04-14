@@ -846,7 +846,10 @@ window.onkeydown = (e) => {
   if (e.ctrlKey && e.key === 'k') { e.preventDefault(); toggleCommandPalette(); }
   if (e.key === 'Escape') document.getElementById('commandPalette').style.display = 'none';
 };
-
+function openProfileModal() {
+  window._renderProfile();
+  openModal('profileModal');
+}
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function showToast(msg) {
