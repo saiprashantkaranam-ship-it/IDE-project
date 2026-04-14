@@ -7,21 +7,27 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/editor/editor.main.min.css"/>
   <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
   <style>
-    /* ── CORE THEME ── */
     :root {
-      --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
-      --accent:#00e5ff; --accent2:#7c3aed; --green:#00ff9d;
-      --red:#ff4f6a; --text:#e2e8f0; --muted:#4a5568; --panel:#0f1219;
-      --sidebar-bg: #1a1d26;
-      --console-bg: var(--panel);
-      --glow: rgba(0, 229, 255, 0.3);
-    }
-    body.light-mode {
-      --bg:#f8fafc; --surface:#ffffff; --border:#e2e8f0;
-      --accent:#0ea5e9; --accent2:#8b5cf6; --green:#10b981;
-      --red:#ef4444; --text:#1e293b; --muted:#64748b; --panel:#f1f5f9;
-      --sidebar-bg: #e2e8f0;
-    }
+  --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
+  --accent:#ff4f6a; --accent2:#ff4f6a; --green:#00ff9d;
+  --red:#ff4f6a; --text:#e2e8f0; --muted:#4a5568; --panel:#0f1219;
+  --sidebar-bg: #1a1d26;
+  --console-bg: var(--panel);
+  --glow: rgba(255, 79, 106, 0.3);
+  --themeColor: #ff4f6a;
+}
+body.light-mode {
+  --bg:#f8fafc; --surface:#ffffff; --border:#e2e8f0;
+  --accent:#ff4f6a; --accent2:#ff4f6a; --green:#10b981;
+  --red:#ff4f6a; --text:#1e293b; --muted:#64748b; --panel:#f1f5f9;
+  --sidebar-bg: #e2e8f0;
+}
+body.theme-blue {
+  --accent:#3b82f6; --accent2:#3b82f6; --glow: rgba(59, 130, 246, 0.3);
+}
+body.theme-green {
+  --accent:#10b981; --accent2:#10b981; --glow: rgba(16, 185, 129, 0.3);
+}
     *{ margin:0; padding:0; box-sizing:border-box; }
     body{
       font-family:'Syne',sans-serif; background:var(--bg);
@@ -798,11 +804,52 @@ async function openLoadModal() {
     const div = document.createElement('div');
     div.style.cssText = "padding:10px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; justify-content:space-between;";
     div.innerHTML = `<span>${d.name}</span><button style="background:var(--red); color:#fff; padding:2px 6px;">del</button>`;
-    div.onclick = () => { editor.setValue(d.code); document.getElementById('projectName').value = d.name; closeModal('loadModal'); };
-    div.querySelector('button').onclick = (e) => { e.stopPropagation(); window._firestoreFns.deleteDoc(window._firestoreFns.doc(window._db, 'projects', d.name)); div.remove(); };
-    list.appendChild(div);
-  });
+    async function saveGlobalSettings() {
+  const name = document.getElementById('setSiteName').value || 'PyCloud';
+  const password = document.getElementById('setPassword').value;
+  const updates = { siteName: name };
+  
+  if (password && password.trim() !== '') {
+    updates.password = password;
+  }
+  
+  try {
+    await window._firestoreFns.setDoc(window._firestoreFns.doc(window._db, "settings", "global"), updates, { merge: true });
+    showToast("🛡️ Settings updated globally!");
+    document.getElementById('setPassword').value = '';
+  } catch(e) { 
+    showToast('❌ Failed: ' + e.message); 
+  }
 }
+
+function setThemeColor(color) {
+  document.body.classList.remove('theme-red', 'theme-blue', 'theme-green');
+  if (color !== 'red') {
+    document.body.classList.add('theme-' + color);
+  }
+  localStorage.setItem('themeColor', color);
+  showToast(`✅ Theme changed to ${color.toUpperCase()}!`);
+}
+
+function toggleLightDarkMode() {
+  document.body.classList.toggle('light-mode');
+  const isLight = document.body.classList.contains('light-mode');
+  localStorage.setItem('lightMode', isLight ? 'true' : 'false');
+  document.getElementById('themeToggleBtn').textContent = isLight ? '☀️ Light' : '🌙 Dark';
+  showToast(isLight ? '☀️ Light mode' : '🌙 Dark mode');
+}
+
+// Load saved preferences on startup
+window.addEventListener('load', () => {
+  const savedTheme = localStorage.getItem('themeColor') || 'red';
+  const savedMode = localStorage.getItem('lightMode') === 'true';
+  
+  setThemeColor(savedTheme);
+  if (savedMode) {
+    document.body.classList.add('light-mode');
+    document.getElementById('themeToggleBtn').textContent = '☀️ Light';
+  }
+});
 
 // ── ASSET UPLOAD ──
 function pickAndUpload(assetKey) {
