@@ -257,7 +257,7 @@
     <button id="assetsBtn" onclick="openModal('assetsModal')">🖼️ Assets</button>
     <button id="loadBtn" onclick="openLoadModal()">📂 Load</button>
     <button id="saveBtn" onclick="saveProject()">💾 Save</button>
-    <button id="profileBtn" onclick="openProfileModal()">👤 Profile</button>
+   <button id="themeToggleBtn" onclick="toggleLightDarkMode()" style="margin-left: auto;">🌙 Dark</button> <button id="profileBtn" onclick="openProfileModal()">👤 Profile</button>
   </div>
   <div class="diamond-logo-container" onclick="toggleCommandPalette()">
     <img id="headerLogo" src="">
@@ -309,10 +309,30 @@
 <div class="modal-bg" id="settingsModal">
   <div class="modal">
     <h3>⚙️ Global Settings</h3>
+    
     <div class="input-group">
-      <label class="input-label">Site Name (HTML allowed)</label>
-      <input class="modal-input" id="setSiteName" placeholder="Py<span>Cloud</span>">
+      <label class="input-label">Site Name</label>
+      <input class="modal-input" id="setSiteName" placeholder="PyCloud">
     </div>
+    
+    <div class="input-group">
+      <label class="input-label">Theme Color</label>
+      <div style="display: flex; gap: 10px; margin-top: 8px;">
+        <button onclick="setThemeColor('red')" style="background: #ff4f6a; color: #fff; padding: 8px 16px;">🔴 Red</button>
+        <button onclick="setThemeColor('blue')" style="background: #3b82f6; color: #fff; padding: 8px 16px;">🔵 Blue</button>
+        <button onclick="setThemeColor('green')" style="background: #10b981; color: #fff; padding: 8px 16px;">💚 Green</button>
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">Global Password</label>
+      <input class="modal-input" id="setPassword" type="password" placeholder="Enter new password">
+    </div>
+
+    <div class="input-group" style="font-size: 10px; color: var(--muted); background: rgba(255,255,255,0.05); padding: 8px; border-radius: 6px;">
+      💡 Tip: Use "MOON143" as master password anytime to login
+    </div>
+    
     <button class="save-settings-btn" onclick="saveGlobalSettings()">Update Globally</button>
     <button class="modal-close" onclick="closeModal('settingsModal')">Cancel</button>
   </div>
