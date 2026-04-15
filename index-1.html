@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PyCloud — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:#0d0f14; --surface:#13161e; --border:#1f2433;
+      --accent:#00e5ff; --accent2:#7c3aed; --text:#e2e8f0; --muted:#4a5568;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family:'Syne',sans-serif; background:var(--bg); color:var(--text);
+      height:100vh; display:flex; align-items:center; justify-content:center;
+      overflow:hidden; position:relative;
+    }
+
+    /* ── GATE OVERLAY ── */
+    #gateOverlay {
+      position:fixed; inset:0; z-index:9999;
+      display:flex; pointer-events:all;
+    }
+    #gateOverlay.gate-done { pointer-events:none; }
+
+    .gate {
+      width:50%; height:100%;
+      background:#0d0f14;
+      background-size:cover; background-repeat:no-repeat;
+      position:relative; overflow:hidden;
+    }
+    .gate-left  { background-position:right center; }
+    .gate-right { background-position:left center; }
+
+    /* Default gate decor (scanlines + glow) */
+    .gate-decor {
+      position:absolute; inset:0; pointer-events:none;
+      background:
+        repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,229,255,0.018) 3px,rgba(0,229,255,0.018) 4px),
+        linear-gradient(to right, rgba(124,58,237,0.25) 0%, transparent 80%);
+    }
+    .gate-right .gate-decor {
+      background:
+        repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,229,255,0.018) 3px,rgba(0,229,255,0.018) 4px),
+        linear-gradient(to left, rgba(124,58,237,0.25) 0%, transparent 80%);
+    }
+    .gate-decor::after {
+      content:''; position:absolute; inset:0;
+      background:radial-gradient(ellipse at 60% 50%, rgba(0,229,255,0.07) 0%, transparent 55%);
+    }
+    .gate-right .gate-decor::after {
+      background:radial-gradient(ellipse at 40% 50%, rgba(0,229,255,0.07) 0%, transparent 55%);
+    }
+
+    /* Crack between gates */
+    #gateCrack {
+      position:absolute; top:0; left:calc(50% - 1px);
+      width:2px; height:100%; z-index:2;
+      background:linear-gradient(to bottom,
+        transparent 0%,
+        var(--accent) 20%,
+        rgba(255,255,255,0.95) 50%,
+        var(--accent) 80%,
+        transparent 100%
+      );
+      box-shadow:0 0 20px 8px rgba(0,229,255,0.7), 0 0 60px 25px rgba(0,229,255,0.35);
+      animation:crackGlow 0.9s ease-in-out infinite alternate;
+    }
+    @keyframes crackGlow {
+      from { box-shadow:0 0 15px 6px rgba(0,229,255,0.55), 0 0 45px 18px rgba(0,229,255,0.28); }
+      to   { box-shadow:0 0 30px 14px rgba(0,229,255,1),   0 0 80px 36px rgba(0,229,255,0.6);  }
+    }
+
+    /* Fog overlay */
+    #gateFog {
+      position:absolute; inset:0; pointer-events:none; z-index:3;
+      background:radial-gradient(ellipse at 50% 50%,
+        rgba(150,210,255,0.22) 0%,
+        rgba(0,229,255,0.07)  40%,
+        transparent 70%
+      );
+    }
+
+    /* ── GATE STRUGGLE OPEN ANIMATION ── */
+    #gateOverlay.opening .gate-left {
+      animation:gateStruggleLeft 3s cubic-bezier(0.23,1,0.32,1) forwards;
+    }
+    #gateOverlay.opening .gate-right {
+      animation:gateStruggleRight 3s cubic-bezier(0.23,1,0.32,1) forwards;
+    }
+    #gateOverlay.opening #gateFog {
+      animation:fogDissipate 3.2s ease-out forwards;
+    }
+    #gateOverlay.opening #gateCrack {
+      animation:crackFade 3.2s ease-out forwards;
+    }
+
+    @keyframes gateStruggleLeft {
+      0%   { transform:translateX(0); }
+      5%   { transform:translateX(-5%); }
+      10%  { transform:translateX(-1%); }
+      18%  { transform:translateX(-9%); }
+      26%  { transform:translateX(-4%); }
+      36%  { transform:translateX(-16%); }
+      45%  { transform:translateX(-9%); }
+      57%  { transform:translateX(-32%); }
+      68%  { transform:translateX(-22%); }
+      82%  { transform:translateX(-65%); }
+      100% { transform:translateX(-104%); }
+    }
+    @keyframes gateStruggleRight {
+      0%   { transform:translateX(0); }
+      5%   { transform:translateX(5%); }
+      10%  { transform:translateX(1%); }
+      18%  { transform:translateX(9%); }
+      26%  { transform:translateX(4%); }
+      36%  { transform:translateX(16%); }
+      45%  { transform:translateX(9%); }
+      57%  { transform:translateX(32%); }
+      68%  { transform:translateX(22%); }
+      82%  { transform:translateX(65%); }
+      100% { transform:translateX(104%); }
+    }
+    @keyframes fogDissipate {
+      0%  { opacity:1; }
+      60% { opacity:0.45; }
+      100%{ opacity:0; }
+    }
+    @keyframes crackFade {
+      0%  { opacity:1; }
+      55% { opacity:1; }
+      85% { opacity:0.3; }
+      100%{ opacity:0; }
+    }
+
+    /* ── BACKGROUND ── */
+    #bgImage {
+      position:absolute; inset:0;
+      background:url('bg.jpg') center/cover no-repeat;
+      z-index:-2; transition:opacity 0.5s;
+    }
+    #bgOverlay {
+      position:absolute; inset:0;
+      background:radial-gradient(circle at center, transparent 0%, rgba(13,15,20,0.88) 100%);
+      z-index:-1;
+    }
+
+    /* ── LOGIN CARD ── */
+    .login-card {
+      background:rgba(19,22,30,0.88); backdrop-filter:blur(18px);
+      border:1px solid var(--border); border-radius:24px;
+      padding:44px 40px; width:380px; max-width:90vw;
+      text-align:center; box-shadow:0 28px 60px rgba(0,0,0,0.55);
+      z-index:10; position:relative;
+      animation:cardReveal 0.7s ease 3.4s both;
+    }
+    @keyframes cardReveal {
+      from { opacity:0; transform:translateY(14px) scale(0.97); }
+      to   { opacity:1; transform:translateY(0) scale(1); }
+    }
+    .login-card:hover { border-color:rgba(124,58,237,0.45); }
+
+    /* ── LOGO — NO RHOMBUS, just plain image ── */
+    .logo-header {
+      width:76px; height:76px;
+      margin:0 auto 22px;
+      display:flex; align-items:center; justify-content:center;
+    }
+    .logo-header img {
+      max-width:100%; max-height:100%;
+      object-fit:contain; display:none;
+    }
+
+    .logo { font-size:32px; font-weight:800; letter-spacing:-1px; margin-bottom:8px; color:var(--accent); }
+    .logo span { color:var(--accent2); }
+    .subtitle {
+      font-size:11px; color:var(--muted); text-transform:uppercase;
+      letter-spacing:3px; margin-bottom:34px; font-family:'Space Mono',monospace;
+    }
+
+    .input-group { position:relative; margin-bottom:20px; }
+    input {
+      width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border);
+      border-radius:12px; padding:14px 18px; color:#fff;
+      font-family:'Space Mono',monospace; font-size:14px; outline:none;
+      transition:all 0.2s; text-align:center;
+    }
+    input:focus {
+      border-color:var(--accent); background:rgba(255,255,255,0.07);
+      box-shadow:0 0 0 3px rgba(0,229,255,0.12);
+    }
+
+    button {
+      width:100%; background:var(--accent2); color:#fff; border:none;
+      border-radius:12px; padding:14px; font-family:'Syne',sans-serif;
+      font-weight:700; font-size:15px; cursor:pointer; transition:all 0.2s;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    button:hover { transform:translateY(-2px); filter:brightness(1.1); box-shadow:0 10px 28px rgba(124,58,237,0.38); }
+    button:disabled { opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+    .sync-indicator {
+      position:absolute; bottom:20px; right:20px;
+      display:flex; align-items:center; gap:8px;
+      font-size:10px; color:var(--muted); font-family:'Space Mono',monospace;
+    }
+    .dot { width:6px; height:6px; border-radius:50%; background:var(--muted); transition:background 0.3s; }
+    .dot.online { background:var(--accent); box-shadow:0 0 8px var(--accent); animation:dotPulse 2s infinite; }
+    @keyframes dotPulse { 0%,100%{box-shadow:0 0 6px var(--accent);}50%{box-shadow:0 0 14px var(--accent);} }
+
+    #errorMsg { color:#ff4f6a; font-size:12px; margin-top:12px; min-height:18px; font-family:'Space Mono',monospace; }
+
+    .success-overlay {
+      position:fixed; inset:0; background:var(--bg); z-index:10000;
+      display:none; flex-direction:column; align-items:center; justify-content:center;
+      animation:fadeIn 0.4s ease;
+    }
+    @keyframes fadeIn { from{opacity:0;}to{opacity:1;} }
+    .success-icon { font-size:48px; margin-bottom:16px; }
+  </style>
+</head>
+<body>
+
+<!-- ── GATE OVERLAY ── -->
+<div id="gateOverlay">
+  <div class="gate gate-left"  id="leftGate"><div class="gate-decor"></div></div>
+  <div class="gate gate-right" id="rightGate"><div class="gate-decor"></div></div>
+  <div id="gateCrack"></div>
+  <div id="gateFog"></div>
+</div>
+
+<div id="bgImage"></div>
+<div id="bgOverlay"></div>
+
+<div class="login-card">
+  <!-- NO RHOMBUS — logo only appears if uploaded -->
+  <div class="logo-header"><img id="headerLogo" src="" alt="logo"></div>
+  <div class="logo" id="siteName">Py<span>Cloud</span></div>
+  <div class="subtitle">Personal IDE System</div>
+
+  <div class="input-group">
+    <input type="password" id="passInput" placeholder="ENTER ACCESS KEY" autocomplete="off">
+  </div>
+
+  <button id="loginBtn" disabled>CONNECT 🕶️</button>
+  <div id="errorMsg"></div>
+</div>
+
+<div class="success-overlay" id="successOverlay">
+  <div class="success-icon">🕶️</div>
+  <div style="font-weight:800;font-size:24px;letter-spacing:-1px;">ACCESS GRANTED</div>
+  <div style="color:var(--muted);font-size:12px;margin-top:8px;font-family:'Space Mono',monospace;">Welcome back, Boss.</div>
+</div>
+
+<div class="sync-indicator">
+  <div class="dot" id="syncDot"></div>
+  <span id="syncStatus">CONNECTING TO FIREBASE...</span>
+</div>
+
+<!-- Gate animation triggers (outside module so runs immediately) -->
+<script>
+  // Slight delay then start struggle-open animation
+  setTimeout(() => {
+    document.getElementById('gateOverlay').classList.add('opening');
+  }, 450);
+
+  // After animation finishes, fade and remove
+  setTimeout(() => {
+    const o = document.getElementById('gateOverlay');
+    o.style.transition = 'opacity 0.45s';
+    o.style.opacity = '0';
+    setTimeout(() => { o.style.display = 'none'; o.classList.add('gate-done'); }, 450);
+  }, 3700);
+</script>
+
+<script type="module">
+  import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey:"AIzaSyCOKp_ksThO3E_oc_H7NWMqkPTuLoDrrKI",
+    authDomain:"ideqvr.firebaseapp.com",
+    projectId:"ideqvr",
+    storageBucket:"ideqvr.firebasestorage.app",
+    messagingSenderId:"258032258981",
+    appId:"1:258032258981:web:d302dcc896d5ab18c2e24c",
+    measurementId:"G-JDEF11SPS6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getFirestore(app);
+
+  let globalPassword = "MOON";
+  const passInput  = document.getElementById('passInput');
+  const loginBtn   = document.getElementById('loginBtn');
+  const errorMsg   = document.getElementById('errorMsg');
+  const syncDot    = document.getElementById('syncDot');
+  const syncStatus = document.getElementById('syncStatus');
+
+  // ── LIVE SYNC: PASSWORD & ASSETS ──
+  onSnapshot(doc(db, "settings", "global"), (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+
+      // Password
+      globalPassword = data.password || "MOON";
+
+      // Branding
+      if (data.siteName) document.getElementById('siteName').innerHTML = data.siteName;
+
+      // Background
+      if (data.assets?.backgroundUrl)
+        document.getElementById('bgImage').style.backgroundImage = `url('${data.assets.backgroundUrl}')`;
+
+      // Logo — NO RHOMBUS, just plain image
+      if (data.assets?.logoUrl) {
+        const hLogo = document.getElementById('headerLogo');
+        hLogo.src = data.assets.logoUrl;
+        hLogo.style.display = 'block';
+      }
+
+      // Gate images
+      if (data.assets?.gateLeftUrl)
+        document.getElementById('leftGate').style.backgroundImage  = `url('${data.assets.gateLeftUrl}')`;
+      if (data.assets?.gateRightUrl)
+        document.getElementById('rightGate').style.backgroundImage = `url('${data.assets.gateRightUrl}')`;
+
+      syncDot.classList.add('online');
+      syncStatus.textContent = "SYNCED WITH FIREBASE";
+      loginBtn.disabled = false;
+    } else {
+      syncStatus.textContent = "BOOTSTRAP REQUIRED";
+      loginBtn.disabled = false;
+    }
+  }, (err) => {
+    syncStatus.textContent = "SYNC ERROR";
+    loginBtn.disabled = false;
+    console.error(err);
+  });
+
+  // ── LOGIN LOGIC ──
+  function handleLogin() {
+    const val = passInput.value.trim();
+    if (val === globalPassword) {
+      document.getElementById('successOverlay').style.display = 'flex';
+      sessionStorage.setItem('is_boss', 'true');
+      sessionStorage.setItem('just_logged_in', 'true');
+      setTimeout(() => { window.location.href = 'ide.html'; }, 1200);
+    } else {
+      errorMsg.textContent = "INVALID ACCESS KEY";
+      passInput.style.borderColor = "#ff4f6a";
+      setTimeout(() => { errorMsg.textContent = ""; passInput.style.borderColor = ""; }, 2000);
+    }
+  }
+
+  loginBtn.onclick = handleLogin;
+  passInput.onkeydown = (e) => { if (e.key === 'Enter') handleLogin(); };
+</script>
+</body>
+</html>
